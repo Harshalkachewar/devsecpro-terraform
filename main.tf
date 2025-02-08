@@ -1,6 +1,6 @@
 resource "aws_security_group" "Jenkins-project2-sg" {
   name        = "Jenkins-Security Group"
-  description = "Open 22,443,80,8080,9000,8081"
+  description = "Open 22,443,80,8080,9000,8081,9090,9100"
 
   # Define individual ingress rules with specific descriptions
   ingress = [
@@ -52,6 +52,20 @@ resource "aws_security_group" "Jenkins-project2-sg" {
       to_port          = 8081
       protocol         = "tcp"
       cidr_blocks      = ["0.0.0.0/0"]
+    },
+    {
+      description      = "Prometheus"
+      from_port        = 9090
+      to_port          = 9090
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+    },
+    {
+      description      = "Node Exporter"
+      from_port        = 9100
+      to_port          = 9100
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
     }
   ]
 
@@ -65,4 +79,32 @@ resource "aws_security_group" "Jenkins-project2-sg" {
   tags = {
     Name = "Jenkins-project2-sg"
   }
+}
+
+resource "aws_instance" "web" {
+  ami                    = "ami-04b4f1a9cf54c11d0"
+  instance_type          = "t2.large"
+  key_name               = "terra-key"
+  vpc_security_group_ids = [aws_security_group.Jenkins-project2-sg.id]
+  user_data              = templatefile("./install_scripts.sh", {})
+
+  tags = {
+    Name = "Jenkins-project"
+  }
+  root_block_device {
+    volume_size = 30
+  }
+}
+
+resource "aws_eip" "my_eip" {
+  domain = "vpc"
+
+  tags = {
+    Name = "MyElasticIP"
+  }
+}
+
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.web.id
+  allocation_id = aws_eip.my_eip.id
 }
